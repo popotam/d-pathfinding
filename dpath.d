@@ -101,7 +101,7 @@ long dist_heuristic(Vertex v1, Vertex v2) {
 Vertex[] find_nearest(Vertex src, Vertex dst) {
     long start_time = time(null);
     Vertex[] path;
-    PathCosts[XYZ] costs;
+    PathCosts[Vertex] costs;
     PathVertex[] opened_ordered;
     bool[Vertex] opened, closed;
     long g, h;
@@ -111,7 +111,7 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
     }
 
     h = dist_heuristic(src, dst);
-    costs[src.xyz] = PathCosts(0, h, null);
+    costs[src] = PathCosts(0, h, null);
     auto vertex = src;
     auto path_vert = PathVertex(h, 0, vertex);
     opened_ordered ~= path_vert;
@@ -137,10 +137,10 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
             }
             cost += path_vert.g;
             if (neighbour in opened) {
-                auto old_costs = costs[neighbour.xyz];
+                auto old_costs = costs[neighbour];
                 if (cost < old_costs.g) {
                     // update cost
-                    costs[neighbour.xyz] = PathCosts(
+                    costs[neighbour] = PathCosts(
                             cost, old_costs.h, vertex);
                     opened_ordered ~=
                             PathVertex(cost + old_costs.h, cost, neighbour);
@@ -149,23 +149,22 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
             } else {
                 // add field to opened list
                 h = dist_heuristic(vertex, neighbour);
-                costs[neighbour.xyz] = PathCosts(cost, h, vertex);
+                costs[neighbour] = PathCosts(cost, h, vertex);
                 opened_ordered ~= PathVertex(cost + h, cost, neighbour);
                 sort!("a.f < b.f", SwapStrategy.stable)(opened_ordered);
                 opened[neighbour] = true;
             }
         }
     }
-    auto xyz = dst.xyz;
-    auto path_cost = costs[xyz];
+    auto path_cost = costs[dst];
     while (path_cost.parent) {
         path ~= path_cost.parent;
-        path_cost = costs[path_cost.parent.xyz];
+        path_cost = costs[path_cost.parent];
     }
     auto calculation_time = time(null) - start_time;
     writefln("astar %s %s->%s lenght=%s closed=%s total_cost=%s heur=%s",
              calculation_time, src.xyz, dst.xyz, path.length,
-             closed.length, costs[dst.xyz].g, costs[src.xyz].h);
+             closed.length, costs[dst].g, costs[src].h);
     return path;
 }
 
