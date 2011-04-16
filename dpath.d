@@ -11,16 +11,16 @@ import std.typetuple;
 
 struct Connection {
 
-    uint cost;
-    Vertex* destination;
+    long cost;
+    Vertex destination;
 
-    this(uint cost, ref Vertex destination) {
+    this(long cost, Vertex destination) {
         this.cost = cost;
-        this.destination = &destination;
+        this.destination = destination;
     }
 
     string toString() {
-        return format("C(%s, %s)", cost, *destination);
+        return format("C(%s, %s)", cost, destination);
     }
 
 }
@@ -28,7 +28,7 @@ struct Connection {
 
 immutable struct XYZ {
 
-    int x, y, z;
+    long x, y, z;
 
     string toString() {
         return format("XYZ(%s, %s, %s)", x, y, z);
@@ -37,17 +37,21 @@ immutable struct XYZ {
 }
 
 
-struct Vertex {
+class Vertex {
 
     XYZ xyz;
     Connection[] connections;
 
-    @property uint x() { return xyz.x; }
-    @property uint y() { return xyz.y; }
-    @property uint z() { return xyz.z; }
-    
+    @property long x() { return xyz.x; }
+    @property long y() { return xyz.y; }
+    @property long z() { return xyz.z; }
+
+    this(XYZ xyz) {
+        this.xyz = xyz;
+    }
+
     string toString() {
-        return format("V[%s,%s,%s]->%s", x, y, z, connections.length);
+        return format("V[%s,%s,%s]", x, y, z);
     }
 
 }
@@ -55,10 +59,10 @@ struct Vertex {
 
 struct PathCosts {
 
-    uint g, h;
-    Vertex* parent = null;
-    
-    @property uint f() {
+    long g, h;
+    Vertex parent;
+
+    @property long f() {
         return g + h;
     }
 
@@ -66,15 +70,15 @@ struct PathCosts {
 
 struct PathVertex {
 
-    uint f, g;
-    Vertex* vertex;
-    
-    @property uint h() {
+    long f, g;
+    Vertex vertex;
+
+    @property long h() {
         return f - g;
     }
 
     string toString() {
-        return format("P%s", *vertex);
+        return format("P%s", vertex);
     }
 
 }
@@ -87,51 +91,47 @@ enum NON_PASSABLE_VERTICES = [XYZ(8, 0, 0), XYZ(8, 1, 0), XYZ(9, 0, 0)];
 alias Vertex[XYZ] Graph;
 
 
-uint dist_heuristic(ref Vertex v1, ref Vertex v2) {
-    return abs(v1.x - v2.x) + abs(v1.y - v2.y) + abs(v1.z - v2.z);
+long dist_heuristic(Vertex v1, Vertex v2) {
+    return (abs(v1.xyz.x - v2.xyz.x) +
+            abs(v1.xyz.y - v2.xyz.y) +
+            abs(v1.xyz.z - v2.xyz.z));
 }
 
 
-Vertex[] find_nearest(ref Vertex src, ref Vertex dst) {
-    uint start_time = time(null);
+Vertex[] find_nearest(Vertex src, Vertex dst) {
+    long start_time = time(null);
     Vertex[] path;
     PathCosts[XYZ] costs;
     PathVertex[] opened_ordered;
     bool[Vertex] opened, closed;
-    uint g, h;
-    
+    long g, h;
+
     if (src == dst) {
         return path;
     }
 
     h = dist_heuristic(src, dst);
     costs[src.xyz] = PathCosts(0, h, null);
-    opened_ordered ~= PathVertex(h, 0, &src);
-    
+    auto vertex = src;
+    auto path_vert = PathVertex(h, 0, vertex);
+    opened_ordered ~= path_vert;
     while (opened_ordered.length) {
-        auto path_vert = opened_ordered[0];
-        auto vertex = *path_vert.vertex;
-        opened_ordered = opened_ordered[1..opened_ordered.length];//.popFront();
-        writeln("---new---");
-        writeln("VERTEX: ", vertex);
-        writeln("OO:", opened_ordered);
+        path_vert = opened_ordered[0];
+        opened_ordered.popFront();
+        vertex = path_vert.vertex;
         if (vertex in closed) {
-            writeln("continue");
             continue;
         }
         if (vertex == dst) {
-            writeln("break");
             break;
         }
         // move field to closed
         opened.remove(vertex);
         closed[vertex] = true;
-        writeln("OPENED: ", opened);
-        writeln("CLOSED:", closed);
         // check every neighbouring fields
         foreach (ref connection; vertex.connections) {
             auto cost = connection.cost;
-            auto neighbour = *connection.destination;
+            auto neighbour = connection.destination;
             if (cost == NOT_PASSABLE || neighbour in closed) {
                 continue;
             }
@@ -141,35 +141,29 @@ Vertex[] find_nearest(ref Vertex src, ref Vertex dst) {
                 if (cost < old_costs.g) {
                     // update cost
                     costs[neighbour.xyz] = PathCosts(
-                            cost, old_costs.h, &vertex);
+                            cost, old_costs.h, vertex);
                     opened_ordered ~=
-                            PathVertex(cost + old_costs.h, cost, &neighbour);
-                    sort!("a.f < b.f", //(a, b) { return a.f < b.f; }
-                          SwapStrategy.stable)(opened_ordered);
+                            PathVertex(cost + old_costs.h, cost, neighbour);
+                    sort!("a.f < b.f", SwapStrategy.stable)(opened_ordered);
                 }
             } else {
                 // add field to opened list
                 h = dist_heuristic(vertex, neighbour);
-                costs[neighbour.xyz] = PathCosts(cost, h, &vertex);
-                opened_ordered ~=
-                        PathVertex(cost + h, cost, &neighbour);
-                sort!("a.f < b.f", //(a, b) { return a.f < b.f; }
-                      SwapStrategy.stable)(opened_ordered);
+                costs[neighbour.xyz] = PathCosts(cost, h, vertex);
+                opened_ordered ~= PathVertex(cost + h, cost, neighbour);
+                sort!("a.f < b.f", SwapStrategy.stable)(opened_ordered);
                 opened[neighbour] = true;
             }
         }
-        writeln("---foreach---");
-        writeln("OPENED: ", opened);
-        writeln("CLOSED:", closed);
     }
     auto xyz = dst.xyz;
     auto path_cost = costs[xyz];
     while (path_cost.parent) {
-        path ~= *path_cost.parent;
-        path_cost = costs[(*path_cost.parent).xyz];
+        path ~= path_cost.parent;
+        path_cost = costs[path_cost.parent.xyz];
     }
     auto calculation_time = time(null) - start_time;
-    writefln("astar %.3f %s->%s lenght=%i closed=%i total_cost=%i heur=%i",
+    writefln("astar %s %s->%s lenght=%s closed=%s total_cost=%s heur=%s",
              calculation_time, src.xyz, dst.xyz, path.length,
              closed.length, costs[dst.xyz].g, costs[src.xyz].h);
     return path;
@@ -182,7 +176,7 @@ void main() {
     foreach (x; 0..10) {
         foreach (y; 0..10) {
             auto xyz = XYZ(x, y, 0);
-            graph[xyz] = Vertex(xyz);
+            graph[xyz] = new Vertex(xyz);
         }
     }
     // create connections
@@ -206,13 +200,8 @@ void main() {
             }
         }
     }
-
+    // do some search
     foreach (vertex; find_nearest(graph[XYZ(1, 1, 0)], graph[XYZ(8, 8, 0)])) {
         writeln(vertex);
     }
-    
-    // print some
-    //foreach (xyz, ref vertex; graph) {
-    //    writefln("%s: %s", xyz, vertex);
-    //}
 }
