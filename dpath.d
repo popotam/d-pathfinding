@@ -1,8 +1,8 @@
 #!/usr/bin/rdmd
 
+import core.time;
 import std.algorithm;
 import std.array;
-import std.c.time;
 import std.math;
 import std.stdio;
 import std.string;
@@ -99,7 +99,7 @@ long dist_heuristic(Vertex v1, Vertex v2) {
 
 
 Vertex[] find_nearest(Vertex src, Vertex dst) {
-    long start_time = time(null);
+    auto start_time = TickDuration.currSystemTick();
     Vertex[] path;
     PathCosts[Vertex] costs;
     PathVertex[] opened_ordered;
@@ -161,8 +161,9 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
         path ~= path_cost.parent;
         path_cost = costs[path_cost.parent];
     }
-    auto calculation_time = time(null) - start_time;
-    writefln("astar %s %s->%s lenght=%s closed=%s total_cost=%s heur=%s",
+    auto calculation_time = (TickDuration.currSystemTick() -
+                             start_time).msecs / 1000.0;
+    writefln("astar %.3f %s->%s lenght=%s closed=%s total_cost=%s heur=%s",
              calculation_time, src.xyz, dst.xyz, path.length,
              closed.length, costs[dst].g, costs[src].h);
     return path;
@@ -172,13 +173,15 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
 void main() {
     Graph graph;
     // create some vertices
-    foreach (x; 0..10) {
-        foreach (y; 0..10) {
+    writeln("Create some vertices");
+    foreach (x; 0..100) {
+        foreach (y; 0..100) {
             auto xyz = XYZ(x, y, 0);
             graph[xyz] = new Vertex(xyz);
         }
     }
     // create connections
+    writeln("Create connections");
     foreach (key, ref vertex; graph) {
         foreach (direction; DIRECTIONS) {
             auto xyz = XYZ(vertex.x + direction.x,
@@ -189,6 +192,7 @@ void main() {
         }
     }
     // create some non-passable vertices
+    writeln("Create some non-passable vertices");
     foreach (xyz; NON_PASSABLE_VERTICES) {
         foreach (connection; graph[xyz].connections) {
             connection.cost = 0;
@@ -200,7 +204,7 @@ void main() {
         }
     }
     // do some search
-    foreach (vertex; find_nearest(graph[XYZ(1, 1, 0)], graph[XYZ(8, 8, 0)])) {
-        writeln(vertex);
-    }
+    writeln("Let's do some search!");
+    auto path = find_nearest(graph[XYZ(1, 1, 0)], graph[XYZ(98, 98, 0)]);
+    writeln(path.length);
 }
