@@ -171,10 +171,12 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
 
 
 void main() {
+    auto start_time = TickDuration.currSystemTick();
+
     Graph graph;
     // create some vertices
     writeln("Create some vertices");
-    foreach (x; 0..100) {
+    foreach (x; 0..1000) {
         foreach (y; 0..100) {
             auto xyz = XYZ(x, y, 0);
             graph[xyz] = new Vertex(xyz);
@@ -203,8 +205,11 @@ void main() {
             }
         }
     }
+    writefln("Graph was set up in %.3f s",
+             (TickDuration.currSystemTick() - start_time).msecs / 1000.0);
+
     // do some search
     writeln("Let's do some search!");
-    auto path = find_nearest(graph[XYZ(1, 1, 0)], graph[XYZ(98, 98, 0)]);
+    auto path = find_nearest(graph[XYZ(1, 1, 0)], graph[XYZ(998, 98, 0)]);
     writeln(path.length);
 }
