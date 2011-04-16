@@ -102,7 +102,7 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
     auto start_time = TickDuration.currSystemTick();
     Vertex[] path;
     PathCosts[Vertex] costs;
-    PathVertex[] opened_ordered;
+    PathVertex[] queue;
     bool[Vertex] opened, closed;
     long g, h;
 
@@ -114,10 +114,10 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
     costs[src] = PathCosts(0, h, null);
     auto vertex = src;
     auto path_vert = PathVertex(h, 0, vertex);
-    opened_ordered ~= path_vert;
-    while (opened_ordered.length) {
-        path_vert = opened_ordered[0];
-        opened_ordered.popFront();
+    queue ~= path_vert;
+    while (queue.length) {
+        path_vert = queue[0];
+        queue.popFront();
         vertex = path_vert.vertex;
         if (vertex in closed) {
             continue;
@@ -142,16 +142,19 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
                     // update cost
                     costs[neighbour] = PathCosts(
                             cost, old_costs.h, vertex);
-                    opened_ordered ~=
-                            PathVertex(cost + old_costs.h, cost, neighbour);
-                    sort!("a.f < b.f", SwapStrategy.stable)(opened_ordered);
+                    auto npv = PathVertex(cost + old_costs.h, cost, neighbour);
+                    auto subarray = find!("a.f >= b.f")(queue, npv);
+                    queue = (queue[0 .. (queue.length - subarray.length)] ~
+                             npv ~ subarray);
                 }
             } else {
                 // add field to opened list
                 h = dist_heuristic(vertex, neighbour);
                 costs[neighbour] = PathCosts(cost, h, vertex);
-                opened_ordered ~= PathVertex(cost + h, cost, neighbour);
-                sort!("a.f < b.f", SwapStrategy.stable)(opened_ordered);
+                auto npv = PathVertex(cost + h, cost, neighbour);
+                auto subarray = find!("a.f >= b.f")(queue, npv);
+                queue = (queue[0 .. (queue.length - subarray.length)] ~
+                         npv ~ subarray);
                 opened[neighbour] = true;
             }
         }
@@ -205,6 +208,18 @@ void main() {
             }
         }
     }
+
+    // test some array operations
+    auto a = [0, 1, 2, 3, 4, 5];
+    writeln(a);
+    auto subarray = find!("a >= b")(a, 3);
+    auto index = a.length - subarray.length;
+    writeln(a[0 .. index], subarray, index);
+    a = a[0 .. index] ~ 9 ~ subarray;
+    writefln("index=%s array=%s", index, a);
+    std.array.insert(a, 0, 77);
+    writefln("index=%s array=%s", index, a);
+
     writefln("Graph was set up in %.3f s",
              (TickDuration.currSystemTick() - start_time).msecs / 1000.0);
 
