@@ -1,8 +1,8 @@
 #!/usr/bin/rdmd
 
 import core.time;
+import std.container;
 import std.math;
-import std.range;
 import std.stdio;
 import std.string;
 
@@ -99,14 +99,6 @@ struct PathVertex {
 }
 
 
-auto trisectInsert(alias pred = "a < b", T)(ref T[] array, T element) {
-    auto r = assumeSorted!(pred)(array).trisect(element);
-    auto index = r[0].length;
-    array = (array[0 .. index] ~ element ~ array[index .. array.length]);
-    return index;
-}
-
-
 long dist_heuristic(Vertex v1, Vertex v2) {
     return (abs(v1.xyz.x - v2.xyz.x) +
             abs(v1.xyz.y - v2.xyz.y) +
@@ -118,7 +110,6 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
     auto start_time = TickDuration.currSystemTick();
     Vertex[] path;
     PathCosts[Vertex] costs;
-    PathVertex[] queue;
     bool[Vertex] opened, closed;
     long g, h;
 
@@ -130,10 +121,11 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
     costs[src] = PathCosts(0, h, null);
     auto vertex = src;
     auto path_vert = PathVertex(h, 0, vertex);
-    queue ~= path_vert;
-    while (queue.length) {
-        path_vert = queue[0];
-        queue.popFront();
+    auto queue = new RedBlackTree!(PathVertex, "a.f < b.f", true)(path_vert);
+
+    while (!queue.empty()) {
+        path_vert = queue.front();
+        queue.removeFront();
         vertex = path_vert.vertex;
         if (vertex in closed) {
             continue;
@@ -158,15 +150,14 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
                     // update cost
                     costs[neighbour] = PathCosts(
                             cost, old_costs.h, vertex);
-                    auto npv = PathVertex(cost + old_costs.h, cost, neighbour);
-                    trisectInsert(queue, npv);
+                    queue.insert(PathVertex(
+                            cost + old_costs.h, cost, neighbour));
                 }
             } else {
                 // add field to opened list
                 h = dist_heuristic(vertex, neighbour);
                 costs[neighbour] = PathCosts(cost, h, vertex);
-                auto npv = PathVertex(cost + h, cost, neighbour);
-                trisectInsert(queue, npv);
+                queue.insert(PathVertex(cost + h, cost, neighbour));
                 opened[neighbour] = true;
             }
         }
@@ -186,13 +177,15 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
 
 
 void main() {
+    enum SIZE_X = 1000;
+    enum SIZE_Y = 100;
     auto start_time = TickDuration.currSystemTick();
 
     Graph graph;
     // create some vertices
     writeln("Create some vertices");
-    foreach (x; 0..1000) {
-        foreach (y; 0..100) {
+    foreach (x; 0..SIZE_X) {
+        foreach (y; 0..SIZE_Y) {
             auto xyz = XYZ(x, y, 0);
             graph[xyz] = new Vertex(xyz);
         }
@@ -226,5 +219,6 @@ void main() {
 
     // do some search
     writeln("Let's do some search!");
-    auto path = find_nearest(graph[XYZ(1, 1, 0)], graph[XYZ(998, 98, 0)]);
+    auto path = find_nearest(graph[XYZ(1, 1, 0)],
+                             graph[XYZ(SIZE_X - 2, SIZE_Y - 2, 0)]);
 }
