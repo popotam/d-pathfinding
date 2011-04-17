@@ -2,6 +2,7 @@
 
 import core.time;
 import std.container;
+import std.json;
 import std.math;
 import std.stdio;
 import std.string;
@@ -216,10 +217,95 @@ Graph createSimpleGraph(uint size_x, uint size_y) {
 }
 
 
+enum TEST_JSON_GRAPH = "[
+    [0,0,0, [
+        [1,0,0,1],
+        [0,1,0,1]
+    ]],
+    [1,0,0, [
+        [0,0,0, 1],
+        [1,1,0, 1]
+    ]],
+    [0,1,0, [
+        [0,0,0, 1],
+        [1,1,0, 1]
+    ]],
+    [1,1,0, [
+        [1,0,0, 1],
+        [0,1,0, 1]
+    ]]
+]";
+
+
+Graph createGraphFromJSON(string json) {
+    Graph graph;
+
+    Vertex getOrCreateVertex(JSONValue json_node) {
+        Vertex vertex;
+        auto xyz = XYZ(json_node.array[0].integer,
+                       json_node.array[1].integer,
+                       json_node.array[2].integer);
+        if (xyz in graph) {
+            vertex = graph[xyz];
+        } else {
+            vertex = new Vertex(xyz);
+            graph[xyz] = vertex;
+        }
+        return vertex;
+    }
+
+    class GraphFromJSONException : Exception {
+        this(string msg) {
+            super(msg);
+        }
+    }
+
+    auto root_node = parseJSON(json);
+    // validate
+    if (root_node.type !is JSON_TYPE.ARRAY) {
+        throw new GraphFromJSONException("Wrong root node formatting");
+    }
+    // process
+    foreach (vertex_node; root_node.array) {
+        // validate
+        if (vertex_node.type !is JSON_TYPE.ARRAY ||
+            vertex_node.array.length != 4 ||
+            vertex_node.array[0].type !is JSON_TYPE.INTEGER ||
+            vertex_node.array[1].type !is JSON_TYPE.INTEGER ||
+            vertex_node.array[2].type !is JSON_TYPE.INTEGER ||
+            vertex_node.array[3].type !is JSON_TYPE.ARRAY) {
+            throw new GraphFromJSONException("Wrong vertex formatting");
+        }
+        // process
+        auto vertex = getOrCreateVertex(vertex_node);
+        foreach (connection_node; vertex_node.array[3].array) {
+            // validate
+            if (connection_node.type !is JSON_TYPE.ARRAY) {
+                throw new GraphFromJSONException("Wrong conncetion node type");
+            }
+            foreach (node; connection_node.array) {
+                if (node.type !is JSON_TYPE.INTEGER) {
+                    throw new GraphFromJSONException(
+                            "Wrong conncetion node formatting");
+                }
+            }
+            // process
+            auto destination = getOrCreateVertex(connection_node);
+            long cost = connection_node.array[3].integer;
+            vertex.connections ~= Connection(cost, destination);
+        }
+    }
+    return graph;
+}
+
+
 void main() {
     enum SizeX = 100;
     enum SizeY = 10;
     auto graph = createSimpleGraph(SizeX, SizeY);
     auto path = findPath(graph[XYZ(1, 1, 0)],
                          graph[XYZ(SizeX - 2, SizeY - 2, 0)]);
+    auto g2 = createGraphFromJSON(TEST_JSON_GRAPH);
+    auto p2 = findPath(g2[XYZ(0, 0, 0)],
+                       g2[XYZ(1, 1, 0)]);
 }
