@@ -1,12 +1,10 @@
 #!/usr/bin/rdmd
 
 import core.time;
-import std.algorithm;
-import std.array;
 import std.math;
+import std.range;
 import std.stdio;
 import std.string;
-import std.typetuple;
 
 
 struct Connection {
@@ -91,6 +89,14 @@ enum NON_PASSABLE_VERTICES = [XYZ(8, 0, 0), XYZ(8, 1, 0), XYZ(9, 0, 0)];
 alias Vertex[XYZ] Graph;
 
 
+auto trisectInsert(alias pred = "a < b", T)(ref T[] array, T element) {
+    auto r = assumeSorted!(pred)(array).trisect(element);
+    auto index = r[0].length;
+    array = (array[0 .. index] ~ element ~ array[index .. array.length]);
+    return index;
+}
+
+
 long dist_heuristic(Vertex v1, Vertex v2) {
     return (abs(v1.xyz.x - v2.xyz.x) +
             abs(v1.xyz.y - v2.xyz.y) +
@@ -143,18 +149,14 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
                     costs[neighbour] = PathCosts(
                             cost, old_costs.h, vertex);
                     auto npv = PathVertex(cost + old_costs.h, cost, neighbour);
-                    auto subarray = find!("a.f >= b.f")(queue, npv);
-                    queue = (queue[0 .. (queue.length - subarray.length)] ~
-                             npv ~ subarray);
+                    trisectInsert!("a.f < b.f")(queue, npv);
                 }
             } else {
                 // add field to opened list
                 h = dist_heuristic(vertex, neighbour);
                 costs[neighbour] = PathCosts(cost, h, vertex);
                 auto npv = PathVertex(cost + h, cost, neighbour);
-                auto subarray = find!("a.f >= b.f")(queue, npv);
-                queue = (queue[0 .. (queue.length - subarray.length)] ~
-                         npv ~ subarray);
+                trisectInsert!("a.f < b.f")(queue, npv);
                 opened[neighbour] = true;
             }
         }
@@ -209,22 +211,10 @@ void main() {
         }
     }
 
-    // test some array operations
-    auto a = [0, 1, 2, 3, 4, 5];
-    writeln(a);
-    auto subarray = find!("a >= b")(a, 3);
-    auto index = a.length - subarray.length;
-    writeln(a[0 .. index], subarray, index);
-    a = a[0 .. index] ~ 9 ~ subarray;
-    writefln("index=%s array=%s", index, a);
-    std.array.insert(a, 0, 77);
-    writefln("index=%s array=%s", index, a);
-
     writefln("Graph was set up in %.3f s",
              (TickDuration.currSystemTick() - start_time).msecs / 1000.0);
 
     // do some search
     writeln("Let's do some search!");
     auto path = find_nearest(graph[XYZ(1, 1, 0)], graph[XYZ(998, 98, 0)]);
-    writeln(path.length);
 }
