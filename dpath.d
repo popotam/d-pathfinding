@@ -6,22 +6,12 @@ import std.range;
 import std.stdio;
 import std.string;
 
+enum DIRECTIONS = [XYZ(1, 0, 0), XYZ(-1, 0, 0),
+                   XYZ(0, 1, 0), XYZ(0, -1, 0)];
+enum NOT_PASSABLE = 0;
+enum NON_PASSABLE_VERTICES = [XYZ(8, 0, 0), XYZ(8, 1, 0), XYZ(9, 0, 0)];
 
-struct Connection {
-
-    long cost;
-    Vertex destination;
-
-    this(long cost, Vertex destination) {
-        this.cost = cost;
-        this.destination = destination;
-    }
-
-    string toString() {
-        return format("C(%s, %s)", cost, destination);
-    }
-
-}
+alias Vertex[XYZ] Graph;
 
 
 immutable struct XYZ {
@@ -55,6 +45,23 @@ class Vertex {
 }
 
 
+struct Connection {
+
+    long cost;
+    Vertex destination;
+
+    this(long cost, Vertex destination) {
+        this.cost = cost;
+        this.destination = destination;
+    }
+
+    string toString() {
+        return format("C(%s, %s)", cost, destination);
+    }
+
+}
+
+
 struct PathCosts {
 
     long g, h;
@@ -65,6 +72,7 @@ struct PathCosts {
     }
 
 }
+
 
 struct PathVertex {
 
@@ -79,14 +87,16 @@ struct PathVertex {
         return format("P%s", vertex);
     }
 
+    int opCmp(PathVertex other) {
+        if (this.f == other.f) {
+            return 0;
+        } else if (this.f > other.f) {
+            return 1;
+        } else {
+            return -1;
+        }
+    }
 }
-
-enum DIRECTIONS = [XYZ(1, 0, 0), XYZ(-1, 0, 0),
-                   XYZ(0, 1, 0), XYZ(0, -1, 0)];
-enum NOT_PASSABLE = 0;
-enum NON_PASSABLE_VERTICES = [XYZ(8, 0, 0), XYZ(8, 1, 0), XYZ(9, 0, 0)];
-
-alias Vertex[XYZ] Graph;
 
 
 auto trisectInsert(alias pred = "a < b", T)(ref T[] array, T element) {
@@ -149,14 +159,14 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
                     costs[neighbour] = PathCosts(
                             cost, old_costs.h, vertex);
                     auto npv = PathVertex(cost + old_costs.h, cost, neighbour);
-                    trisectInsert!("a.f < b.f")(queue, npv);
+                    trisectInsert(queue, npv);
                 }
             } else {
                 // add field to opened list
                 h = dist_heuristic(vertex, neighbour);
                 costs[neighbour] = PathCosts(cost, h, vertex);
                 auto npv = PathVertex(cost + h, cost, neighbour);
-                trisectInsert!("a.f < b.f")(queue, npv);
+                trisectInsert(queue, npv);
                 opened[neighbour] = true;
             }
         }
