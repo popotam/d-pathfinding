@@ -99,14 +99,14 @@ struct PathVertex {
 }
 
 
-long dist_heuristic(Vertex v1, Vertex v2) {
+long distanceHeuristic(Vertex v1, Vertex v2) {
     return (abs(v1.xyz.x - v2.xyz.x) +
             abs(v1.xyz.y - v2.xyz.y) +
             abs(v1.xyz.z - v2.xyz.z));
 }
 
 
-Vertex[] find_nearest(Vertex src, Vertex dst) {
+Vertex[] findPath(Vertex src, Vertex dst) {
     auto start_time = TickDuration.currSystemTick();
     Vertex[] path;
     PathCosts[Vertex] costs;
@@ -117,7 +117,7 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
         return path;
     }
 
-    h = dist_heuristic(src, dst);
+    h = distanceHeuristic(src, dst);
     costs[src] = PathCosts(0, h, null);
     auto vertex = src;
     auto path_vert = PathVertex(h, 0, vertex);
@@ -155,7 +155,7 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
                 }
             } else {
                 // add field to opened list
-                h = dist_heuristic(vertex, neighbour);
+                h = distanceHeuristic(vertex, neighbour);
                 costs[neighbour] = PathCosts(cost, h, vertex);
                 queue.insert(PathVertex(cost + h, cost, neighbour));
                 opened[neighbour] = true;
@@ -176,16 +176,13 @@ Vertex[] find_nearest(Vertex src, Vertex dst) {
 }
 
 
-void main() {
-    enum SIZE_X = 1000;
-    enum SIZE_Y = 100;
+Graph createSimpleGraph(uint size_x, uint size_y) {
     auto start_time = TickDuration.currSystemTick();
-
     Graph graph;
     // create some vertices
     writeln("Create some vertices");
-    foreach (x; 0..SIZE_X) {
-        foreach (y; 0..SIZE_Y) {
+    foreach (x; 0..size_x) {
+        foreach (y; 0..size_y) {
             auto xyz = XYZ(x, y, 0);
             graph[xyz] = new Vertex(xyz);
         }
@@ -213,12 +210,16 @@ void main() {
             }
         }
     }
-
     writefln("Graph was set up in %.3f s",
              (TickDuration.currSystemTick() - start_time).msecs / 1000.0);
+    return graph;
+}
 
-    // do some search
-    writeln("Let's do some search!");
-    auto path = find_nearest(graph[XYZ(1, 1, 0)],
-                             graph[XYZ(SIZE_X - 2, SIZE_Y - 2, 0)]);
+
+void main() {
+    enum SizeX = 100;
+    enum SizeY = 10;
+    auto graph = createSimpleGraph(SizeX, SizeY);
+    auto path = findPath(graph[XYZ(1, 1, 0)],
+                         graph[XYZ(SizeX - 2, SizeY - 2, 0)]);
 }
