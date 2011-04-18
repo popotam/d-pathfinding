@@ -3,6 +3,7 @@
 import core.time;
 import std.container;
 import std.json;
+import std.file;
 import std.math;
 import std.stdio;
 import std.string;
@@ -281,12 +282,13 @@ Graph createGraphFromJSON(string json) {
         foreach (connection_node; vertex_node.array[3].array) {
             // validate
             if (connection_node.type !is JSON_TYPE.ARRAY) {
-                throw new GraphFromJSONException("Wrong conncetion node type");
+                throw new GraphFromJSONException("Wrong connection node type");
             }
             foreach (node; connection_node.array) {
                 if (node.type !is JSON_TYPE.INTEGER) {
-                    throw new GraphFromJSONException(
-                            "Wrong conncetion node formatting");
+                    throw new GraphFromJSONException(format(
+                            "Wrong connection node element type %s",
+                            node.type));
                 }
             }
             // process
@@ -299,13 +301,16 @@ Graph createGraphFromJSON(string json) {
 }
 
 
-void main() {
+void main(string[] args) {
     enum SizeX = 100;
     enum SizeY = 10;
     auto graph = createSimpleGraph(SizeX, SizeY);
     auto path = findPath(graph[XYZ(1, 1, 0)],
                          graph[XYZ(SizeX - 2, SizeY - 2, 0)]);
-    auto g2 = createGraphFromJSON(TEST_JSON_GRAPH);
-    auto p2 = findPath(g2[XYZ(0, 0, 0)],
-                       g2[XYZ(1, 1, 0)]);
+    if (args.length > 1) {
+        auto json = readText(args[1]);
+        auto g2 = createGraphFromJSON(json);//TEST_JSON_GRAPH);
+        auto p2 = findPath(g2[XYZ(5196, 34000, -135)],
+                           g2[XYZ(-16454, 38500, -761)]);
+    }
 }
