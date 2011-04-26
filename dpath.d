@@ -304,13 +304,13 @@ Graph createGraphFromJSON(string json) {
 void main(string[] args) {
     enum SizeX = 100;
     enum SizeY = 10;
-    auto graph = createSimpleGraph(SizeX, SizeY);
-    auto path = findPath(graph[XYZ(1, 1, 0)],
-                         graph[XYZ(SizeX - 2, SizeY - 2, 0)]);
+    auto sample_graph = createSimpleGraph(SizeX, SizeY);
+    auto sample_path = findPath(sample_graph[XYZ(1, 1, 0)],
+                                sample_graph[XYZ(SizeX - 2, SizeY - 2, 0)]);
     if (args.length > 1) {
         auto json = readText(args[1]);
-        auto g2 = createGraphFromJSON(json);//TEST_JSON_GRAPH);
-        auto p2 = findPath(g2[XYZ(5196, 34000, -135)],
-                           g2[XYZ(-16454, 38500, -761)]);
+        auto graph = createGraphFromJSON(json);//TEST_JSON_GRAPH);
+        auto path = findPath(graph[XYZ(5196, 34000, -135)],
+                           graph[XYZ(-16454, 38500, -761)]);
     }
 }
