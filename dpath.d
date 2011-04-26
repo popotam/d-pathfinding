@@ -218,26 +218,6 @@ Graph createSimpleGraph(uint size_x, uint size_y) {
 }
 
 
-enum TEST_JSON_GRAPH = "[
-    [0,0,0, [
-        [1,0,0,1],
-        [0,1,0,1]
-    ]],
-    [1,0,0, [
-        [0,0,0, 1],
-        [1,1,0, 1]
-    ]],
-    [0,1,0, [
-        [0,0,0, 1],
-        [1,1,0, 1]
-    ]],
-    [1,1,0, [
-        [1,0,0, 1],
-        [0,1,0, 1]
-    ]]
-]";
-
-
 Graph createGraphFromJSON(string json) {
     Graph graph;
 
@@ -301,16 +281,43 @@ Graph createGraphFromJSON(string json) {
 }
 
 
-void main(string[] args) {
+unittest {
     enum SizeX = 100;
     enum SizeY = 10;
     auto sample_graph = createSimpleGraph(SizeX, SizeY);
     auto sample_path = findPath(sample_graph[XYZ(1, 1, 0)],
                                 sample_graph[XYZ(SizeX - 2, SizeY - 2, 0)]);
+    enum TEST_JSON_GRAPH = "[
+        [0,0,0, [
+            [1,0,0, 1],
+            [0,1,0, 1]
+        ]],
+        [1,0,0, [
+            [0,0,0, 1],
+            [1,1,0, 1]
+        ]],
+        [0,1,0, [
+            [0,0,0, 1],
+            [1,1,0, 1]
+        ]],
+        [1,1,0, [
+            [1,0,0, 1],
+            [0,1,0, 1]
+        ]]
+    ]";
+    auto json_graph = createGraphFromJSON(TEST_JSON_GRAPH);
+    auto json_path = findPath(json_graph[XYZ(0, 0, 0)],
+                              json_graph[XYZ(1, 1, 0)]);
+}
+
+
+void main(string[] args) {
     if (args.length > 1) {
         auto json = readText(args[1]);
-        auto graph = createGraphFromJSON(json);//TEST_JSON_GRAPH);
+        auto graph = createGraphFromJSON(json);
         auto path = findPath(graph[XYZ(5196, 34000, -135)],
                            graph[XYZ(-16454, 38500, -761)]);
+    } else {
+        writefln("Usage: %s <graph.json>", args[0]);
     }
 }
