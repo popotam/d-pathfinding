@@ -1,5 +1,6 @@
 #!/usr/bin/rdmd
 
+import core.memory;
 import core.time;
 import std.c.stdlib: exit;
 import std.container;
@@ -163,7 +164,7 @@ Vertex[] findPath(Vertex src, Vertex dst) {
                 }
             } else {
                 // add field to opened list
-                h = distanceHeuristic(vertex, neighbour);
+                h = distanceHeuristic(neighbour, dst);
                 costs[neighbour] = PathCosts(cost, h, vertex);
                 queue.insert(PathVertex(cost + h, cost, neighbour));
                 opened[neighbour] = true;
@@ -338,14 +339,14 @@ Vertex[] getSampleFromJSON(Graph graph, string json) {
 }
 
 
-void measureFindPath(Vertex[] sample) {
+float measureFindPath(Vertex[] sample) {
     auto start_time = TickDuration.currSystemTick();
     foreach (src; sample) {
         foreach (dst; sample) {
             findPath(src, dst);
         }
     }
-    writefln("All sample paths found in %.3f", calculationTime(start_time));
+    return calculationTime(start_time);
 }
 
 
@@ -401,5 +402,9 @@ void main(string[] args) {
     auto json = readText(args[1]);
     auto graph = createGraphFromJSON(json);
     auto sample = getSampleFromJSON(graph, json);
-    measureFindPath(sample);
+    //GC.disable();
+    foreach (index; 0..10) {
+        writefln("%s : %.3f", index, measureFindPath(sample));
+    }
+    //GC.enable();
 }
