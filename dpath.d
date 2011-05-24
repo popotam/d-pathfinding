@@ -243,11 +243,17 @@ Graph createGraphFromJSON(string json) {
 
     auto root_node = parseJSON(json);
     // validate
-    if (root_node.type !is JSON_TYPE.ARRAY) {
+    if (root_node.type !is JSON_TYPE.OBJECT ||
+        !("graph" in root_node.object)) {
         throw new GraphFromJSONException("Wrong root node formatting");
     }
-    // process
-    foreach (vertex_node; root_node.array) {
+    auto graph_node = root_node.object["graph"];
+    if (graph_node.type !is JSON_TYPE.ARRAY) {
+        throw new GraphFromJSONException("Wrong graph node formatting");
+    }
+
+    // process graph
+    foreach (vertex_node; graph_node.array) {
         // validate
         if (vertex_node.type !is JSON_TYPE.ARRAY ||
             vertex_node.array.length != 4 ||
@@ -281,33 +287,95 @@ Graph createGraphFromJSON(string json) {
 }
 
 
+Vertex[] getSampleFromJSON(Graph graph, string json) {
+    Vertex[] sample = [];
+
+    class SampleFromJSONException : Exception {
+        this(string msg) {
+            super(msg);
+        }
+    }
+
+    Vertex getVertex(JSONValue json_node) {
+        Vertex vertex;
+        auto xyz = XYZ(json_node.array[0].integer,
+                       json_node.array[1].integer,
+                       json_node.array[2].integer);
+        if (!(xyz in graph)) {
+            throw new SampleFromJSONException("Vertex not present in graph");
+        }
+        return graph[xyz];
+    }
+
+    auto root_node = parseJSON(json);
+    // validate
+    if (root_node.type !is JSON_TYPE.OBJECT ||
+        !("sample" in root_node.object)) {
+        throw new SampleFromJSONException("Wrong root node formatting");
+    }
+    auto sample_node = root_node.object["sample"];
+    if (sample_node.type !is JSON_TYPE.ARRAY) {
+        throw new SampleFromJSONException("Wrong sample node formatting");
+    }
+
+    // process sample
+    foreach (vertex_node; sample_node.array) {
+        // validate
+        if (vertex_node.type !is JSON_TYPE.ARRAY ||
+            vertex_node.array.length != 3 ||
+            vertex_node.array[0].type !is JSON_TYPE.INTEGER ||
+            vertex_node.array[1].type !is JSON_TYPE.INTEGER ||
+            vertex_node.array[2].type !is JSON_TYPE.INTEGER) {
+            throw new SampleFromJSONException("Wrong sample formatting");
+        }
+        // process
+        sample ~= getVertex(vertex_node);
+    }
+    return sample;
+}
+
+
 unittest {
+    writeln("START UNITTESTS");
     enum SizeX = 100;
     enum SizeY = 10;
     auto sample_graph = createSimpleGraph(SizeX, SizeY);
-    auto sample_path = findPath(sample_graph[XYZ(1, 1, 0)],
-                                sample_graph[XYZ(SizeX - 2, SizeY - 2, 0)]);
-    enum TEST_JSON_GRAPH = "[
-        [0,0,0, [
-            [1,0,0, 1],
-            [0,1,0, 1]
-        ]],
-        [1,0,0, [
-            [0,0,0, 1],
-            [1,1,0, 1]
-        ]],
-        [0,1,0, [
-            [0,0,0, 1],
-            [1,1,0, 1]
-        ]],
-        [1,1,0, [
-            [1,0,0, 1],
-            [0,1,0, 1]
-        ]]
-    ]";
+    auto src = sample_graph[XYZ(1, 1, 0)];
+    auto dst = sample_graph[XYZ(SizeX - 2, SizeY - 2, 0)];
+    auto sample_path = findPath(src, dst);
+    enum TEST_JSON_GRAPH = "{
+        \"sample\": [
+            [0,0,0],
+            [1,0,0],
+            [0,1,0],
+            [1,1,0]
+        ],
+        \"graph\": [
+            [0,0,0, [
+                [1,0,0, 1],
+                [0,1,0, 1]
+            ]],
+            [1,0,0, [
+                [0,0,0, 1],
+                [1,1,0, 1]
+            ]],
+            [0,1,0, [
+                [0,0,0, 1],
+                [1,1,0, 1]
+            ]],
+            [1,1,0, [
+                [1,0,0, 1],
+                [0,1,0, 1]
+            ]]
+        ]
+    }";
     auto json_graph = createGraphFromJSON(TEST_JSON_GRAPH);
+    auto json_sample = getSampleFromJSON(json_graph, TEST_JSON_GRAPH);
     auto json_path = findPath(json_graph[XYZ(0, 0, 0)],
                               json_graph[XYZ(1, 1, 0)]);
+    auto json_path2 = findPath(json_sample[0],
+                              json_sample[json_sample.length - 1]);
+    writeln("END UNITTESTS");
 }
 
 
@@ -315,8 +383,10 @@ void main(string[] args) {
     if (args.length > 1) {
         auto json = readText(args[1]);
         auto graph = createGraphFromJSON(json);
-        auto path = findPath(graph[XYZ(5196, 34000, -135)],
-                           graph[XYZ(-16454, 38500, -761)]);
+        auto sample = getSampleFromJSON(graph, json);
+        auto src = sample[0];
+        auto dst = sample[sample.length - 1];
+        auto path = findPath(src, dst);
     } else {
         writefln("Usage: %s <graph.json>", args[0]);
     }
