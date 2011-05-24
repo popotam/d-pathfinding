@@ -1,6 +1,7 @@
 #!/usr/bin/rdmd
 
 import core.time;
+import std.c.stdlib: exit;
 import std.container;
 import std.json;
 import std.file;
@@ -101,6 +102,11 @@ struct PathVertex {
 }
 
 
+float calculationTime(TickDuration start_time) {
+    return (TickDuration.currSystemTick() - start_time).msecs / 1000.0;
+}
+
+
 long distanceHeuristic(Vertex v1, Vertex v2) {
     return (abs(v1.xyz.x - v2.xyz.x) +
             abs(v1.xyz.y - v2.xyz.y) +
@@ -169,10 +175,8 @@ Vertex[] findPath(Vertex src, Vertex dst) {
         path ~= path_cost.parent;
         path_cost = costs[path_cost.parent];
     }
-    auto calculation_time = (TickDuration.currSystemTick() -
-                             start_time).msecs / 1000.0;
     writefln("astar %.3f %s->%s lenght=%s closed=%s total_cost=%s heur=%s",
-             calculation_time, src.xyz, dst.xyz, path.length,
+             calculationTime(start_time), src.xyz, dst.xyz, path.length,
              closed.length, costs[dst].g, costs[src].h);
     return path;
 }
@@ -212,8 +216,7 @@ Graph createSimpleGraph(uint size_x, uint size_y) {
             }
         }
     }
-    writefln("Graph was set up in %.3f s",
-             (TickDuration.currSystemTick() - start_time).msecs / 1000.0);
+    writefln("Graph was set up in %.3f s", calculationTime(start_time));
     return graph;
 }
 
@@ -335,6 +338,17 @@ Vertex[] getSampleFromJSON(Graph graph, string json) {
 }
 
 
+void measureFindPath(Vertex[] sample) {
+    auto start_time = TickDuration.currSystemTick();
+    foreach (src; sample) {
+        foreach (dst; sample) {
+            findPath(src, dst);
+        }
+    }
+    writefln("All sample paths found in %.3f", calculationTime(start_time));
+}
+
+
 unittest {
     writeln("START UNITTESTS");
     enum SizeX = 100;
@@ -380,14 +394,12 @@ unittest {
 
 
 void main(string[] args) {
-    if (args.length > 1) {
-        auto json = readText(args[1]);
-        auto graph = createGraphFromJSON(json);
-        auto sample = getSampleFromJSON(graph, json);
-        auto src = sample[0];
-        auto dst = sample[sample.length - 1];
-        auto path = findPath(src, dst);
-    } else {
+    if (args.length < 2) {
         writefln("Usage: %s <graph.json>", args[0]);
+        exit(1);
     }
+    auto json = readText(args[1]);
+    auto graph = createGraphFromJSON(json);
+    auto sample = getSampleFromJSON(graph, json);
+    measureFindPath(sample);
 }
