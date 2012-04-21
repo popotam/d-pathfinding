@@ -18,7 +18,7 @@ enum NON_PASSABLE_VERTICES = [XYZ(8, 0, 0), XYZ(8, 1, 0), XYZ(9, 0, 0)];
 alias Vertex[XYZ] Graph;
 
 
-immutable struct XYZ {
+struct XYZ {
 
     long x, y, z;
 
