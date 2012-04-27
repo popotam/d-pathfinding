@@ -13,7 +13,6 @@ import std.string;
 enum DIRECTIONS = [XYZ(1, 0, 0), XYZ(-1, 0, 0),
                    XYZ(0, 1, 0), XYZ(0, -1, 0)];
 enum NOT_PASSABLE = 0;
-enum NON_PASSABLE_VERTICES = [XYZ(8, 0, 0), XYZ(8, 1, 0), XYZ(9, 0, 0)];
 
 alias Vertex[XYZ] Graph;
 
@@ -183,45 +182,6 @@ Vertex[] findPath(Vertex src, Vertex dst) {
 }
 
 
-Graph createSimpleGraph(uint size_x, uint size_y) {
-    auto start_time = TickDuration.currSystemTick();
-    Graph graph;
-    // create some vertices
-    writeln("Create some vertices");
-    foreach (x; 0..size_x) {
-        foreach (y; 0..size_y) {
-            auto xyz = XYZ(x, y, 0);
-            graph[xyz] = new Vertex(xyz);
-        }
-    }
-    // create connections
-    writeln("Create connections");
-    foreach (key, ref vertex; graph) {
-        foreach (direction; DIRECTIONS) {
-            auto xyz = XYZ(vertex.x + direction.x,
-                           vertex.y + direction.y, 0);
-            if (xyz in graph) {
-                vertex.connections ~= Connection(1, graph[xyz]);
-            }
-        }
-    }
-    // create some non-passable vertices
-    writeln("Create some non-passable vertices");
-    foreach (xyz; NON_PASSABLE_VERTICES) {
-        foreach (connection; graph[xyz].connections) {
-            connection.cost = 0;
-            foreach (other_conn; connection.destination.connections) {
-                if (other_conn.destination.xyz == xyz) {
-                    other_conn.cost = 0;
-                }
-            }
-        }
-    }
-    writefln("Graph was set up in %.3f s", calculationTime(start_time));
-    return graph;
-}
-
-
 Graph createGraphFromJSON(string json) {
     Graph graph;
 
@@ -350,7 +310,50 @@ float measureFindPath(Vertex[] sample) {
 }
 
 
+/* ---------- UNITTESTS ---------- */
+
+
 unittest {
+    Graph createSimpleGraph(uint size_x, uint size_y) {
+        enum NON_PASSABLE_VERTICES = [
+                XYZ(8, 0, 0), XYZ(8, 1, 0), XYZ(9, 0, 0)];
+        auto start_time = TickDuration.currSystemTick();
+        Graph graph;
+        // create some vertices
+        writeln("Create some vertices");
+        foreach (x; 0..size_x) {
+            foreach (y; 0..size_y) {
+                auto xyz = XYZ(x, y, 0);
+                graph[xyz] = new Vertex(xyz);
+            }
+        }
+        // create connections
+        writeln("Create connections");
+        foreach (key, ref vertex; graph) {
+            foreach (direction; DIRECTIONS) {
+                auto xyz = XYZ(vertex.x + direction.x,
+                               vertex.y + direction.y, 0);
+                if (xyz in graph) {
+                    vertex.connections ~= Connection(1, graph[xyz]);
+                }
+            }
+        }
+        // create some non-passable vertices
+        writeln("Create some non-passable vertices");
+        foreach (xyz; NON_PASSABLE_VERTICES) {
+            foreach (connection; graph[xyz].connections) {
+                connection.cost = 0;
+                foreach (other_conn; connection.destination.connections) {
+                    if (other_conn.destination.xyz == xyz) {
+                        other_conn.cost = 0;
+                    }
+                }
+            }
+        }
+        writefln("Graph was set up in %.3f s", calculationTime(start_time));
+        return graph;
+    }
+
     writeln("START UNITTESTS");
     enum SizeX = 100;
     enum SizeY = 10;
@@ -358,6 +361,7 @@ unittest {
     auto src = sample_graph[XYZ(1, 1, 0)];
     auto dst = sample_graph[XYZ(SizeX - 2, SizeY - 2, 0)];
     auto sample_path = findPath(src, dst);
+    writeln("Testing graph from JSON");
     enum TEST_JSON_GRAPH = "{
         \"sample\": [
             [0,0,0],
@@ -392,6 +396,9 @@ unittest {
                               json_sample[json_sample.length - 1]);
     writeln("END UNITTESTS");
 }
+
+
+/* ---------- MAIN ---------- */
 
 
 void main(string[] args) {
