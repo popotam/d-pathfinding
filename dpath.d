@@ -32,6 +32,7 @@ class Vertex {
 
     XYZ xyz;
     Connection[] connections;
+    int __marker = 0;
 
     @property long x() { return xyz.x; }
     @property long y() { return xyz.y; }
@@ -103,12 +104,17 @@ long distanceHeuristic(Vertex v1, Vertex v2) {
 }
 
 
+int findPathMarker = 0;
+
+
 Vertex[] findPath(Vertex src, Vertex dst) {
     auto start_time = TickDuration.currSystemTick();
     Vertex[] path;
     PathCosts[Vertex] costs;
-    bool[Vertex] opened, closed;
     long g, h;
+    int closed_length = 0;
+    int openedMarker = ++findPathMarker;
+    int closedMarker = ++findPathMarker;
 
     if (src == dst) {
         return path;
@@ -124,24 +130,24 @@ Vertex[] findPath(Vertex src, Vertex dst) {
         path_vert = queue.front();
         queue.removeFront();
         vertex = path_vert.vertex;
-        if (vertex in closed) {
+        if (vertex.__marker == closedMarker) {
             continue;
         }
         if (vertex == dst) {
             break;
         }
         // move field to closed
-        opened.remove(vertex);
-        closed[vertex] = true;
+        vertex.__marker = closedMarker;
+        closed_length++;
         // check every neighbouring fields
         foreach (ref connection; vertex.connections) {
             auto cost = connection.cost;
             auto neighbour = connection.destination;
-            if (cost == NOT_PASSABLE || neighbour in closed) {
+            if (cost == NOT_PASSABLE || neighbour.__marker == closedMarker) {
                 continue;
             }
             cost += path_vert.g;
-            if (neighbour in opened) {
+            if (neighbour.__marker == openedMarker) {
                 auto old_costs = costs[neighbour];
                 if (cost < old_costs.g) {
                     // update cost
@@ -155,7 +161,7 @@ Vertex[] findPath(Vertex src, Vertex dst) {
                 auto path_neig = PathCosts(cost, h, neighbour, vertex);
                 costs[neighbour] = path_neig;
                 queue.insert(path_neig);
-                opened[neighbour] = true;
+                neighbour.__marker = openedMarker;
             }
         }
     }
@@ -166,7 +172,7 @@ Vertex[] findPath(Vertex src, Vertex dst) {
     }
     writefln("astar %.3f %s->%s lenght=%s closed=%s total_cost=%s heur=%s",
              calculationTime(start_time), src.xyz, dst.xyz, path.length,
-             closed.length, costs[dst].g, costs[src].h);
+             closed_length, costs[dst].g, costs[src].h);
     return path;
 }
 
