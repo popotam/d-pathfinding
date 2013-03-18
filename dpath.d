@@ -41,7 +41,7 @@ class Vertex {
         this.xyz = xyz;
     }
 
-    string toString() {
+    override string toString() {
         return format("V[%s,%s,%s]", x, y, z);
     }
 
