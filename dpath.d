@@ -32,7 +32,16 @@ class Vertex {
 
     XYZ xyz;
     Connection[] connections;
+
+    // pathfinding helpers
     int __marker = 0;
+    long __g = 0;
+    long __h = 0;
+    Vertex __parent = null;
+
+    @property long __f() {
+        return __g + __h;
+    }
 
     @property long x() { return xyz.x; }
     @property long y() { return xyz.y; }
@@ -66,32 +75,6 @@ struct Connection {
 }
 
 
-struct PathCosts {
-
-    long g, h;
-    Vertex vertex;
-    Vertex parent;
-
-    @property long f() {
-        return g + h;
-    }
-
-    string toString() {
-        return format("P%s", vertex);
-    }
-
-    int opCmp(PathCosts other) {
-        if (this.f == other.f) {
-            return 0;
-        } else if (this.f > other.f) {
-            return 1;
-        } else {
-            return -1;
-        }
-    }
-}
-
-
 float calculationTime(TickDuration start_time) {
     return (TickDuration.currSystemTick() - start_time).msecs / 1000.0;
 }
@@ -110,7 +93,6 @@ int findPathMarker = 0;
 Vertex[] findPath(Vertex src, Vertex dst) {
     auto start_time = TickDuration.currSystemTick();
     Vertex[] path;
-    PathCosts[Vertex] costs;
     long g, h;
     int closed_length = 0;
     int openedMarker = ++findPathMarker;
@@ -122,14 +104,14 @@ Vertex[] findPath(Vertex src, Vertex dst) {
 
     h = distanceHeuristic(src, dst);
     auto vertex = src;
-    auto path_vert = PathCosts(0, h, vertex, null);
-    costs[vertex] = path_vert;
-    auto queue = new RedBlackTree!(PathCosts, "a.f < b.f", true)(path_vert);
+    vertex.__g = 0;
+    vertex.__h = h;
+    vertex.__parent = null;
+    auto queue = new RedBlackTree!(Vertex, "a.__f < b.__f", true)(vertex);
 
     while (!queue.empty()) {
-        path_vert = queue.front();
+        vertex = queue.front();
         queue.removeFront();
-        vertex = path_vert.vertex;
         if (vertex.__marker == closedMarker) {
             continue;
         }
@@ -146,33 +128,40 @@ Vertex[] findPath(Vertex src, Vertex dst) {
             if (cost == NOT_PASSABLE || neighbour.__marker == closedMarker) {
                 continue;
             }
-            cost += path_vert.g;
+            cost += vertex.__g;
             if (neighbour.__marker == openedMarker) {
-                auto old_costs = costs[neighbour];
-                if (cost < old_costs.g) {
+                // field was in opened list
+                if (cost < neighbour.__g) {
                     // update cost
-                    old_costs.g = cost;
-                    old_costs.parent = vertex;
-                    queue.insert(old_costs);
+                    neighbour.__g = cost;
+                    neighbour.__parent = vertex;
+                    queue.insert(neighbour);
                 }
             } else {
                 // add field to opened list
                 h = distanceHeuristic(neighbour, dst);
-                auto path_neig = PathCosts(cost, h, neighbour, vertex);
-                costs[neighbour] = path_neig;
-                queue.insert(path_neig);
+                neighbour.__g = cost;
+                neighbour.__h = h;
+                neighbour.__parent = vertex;
+                queue.insert(neighbour);
                 neighbour.__marker = openedMarker;
             }
         }
     }
-    auto path_cost = costs[dst];
-    while (path_cost.parent) {
-        path ~= path_cost.parent;
-        path_cost = costs[path_cost.parent];
+
+    if (vertex !is dst) {
+        throw new Error("No path found");
+    }
+
+    // backtrack to get path
+    vertex = dst;
+    while (vertex.__parent !is null) {
+        path ~= vertex.__parent;
+        vertex = vertex.__parent;
     }
     writefln("astar %.3f %s->%s lenght=%s closed=%s total_cost=%s heur=%s",
              calculationTime(start_time), src.xyz, dst.xyz, path.length,
-             closed_length, costs[dst].g, costs[src].h);
+             closed_length, dst.__g, src.__h);
     return path;
 }
 
