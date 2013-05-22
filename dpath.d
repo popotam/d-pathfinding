@@ -393,7 +393,7 @@ unittest {
     auto json_path = findPath(json_graph[XYZ(0, 0, 0)],
                               json_graph[XYZ(1, 1, 0)]);
     auto json_path2 = findPath(json_sample[0],
-                              json_sample[json_sample.length - 1]);
+                              json_sample[$ - 1]);
     writeln("END UNITTESTS");
 }
 
