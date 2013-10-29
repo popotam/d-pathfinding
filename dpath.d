@@ -17,9 +17,9 @@ enum NOT_PASSABLE = 0;
 alias Vertex[XYZ] Graph;
 
 
-struct XYZ {
+immutable struct XYZ {
 
-    long x, y, z;
+    immutable long x, y, z;
 
     string toString() {
         return format("XYZ(%s, %s, %s)", x, y, z);
