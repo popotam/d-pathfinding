@@ -68,29 +68,18 @@ struct Connection {
 struct PathCosts {
 
     long g, h;
+    Vertex vertex;
     Vertex parent;
 
     @property long f() {
         return g + h;
     }
 
-}
-
-
-struct PathVertex {
-
-    long f, g;
-    Vertex vertex;
-
-    @property long h() {
-        return f - g;
-    }
-
     string toString() {
         return format("P%s", vertex);
     }
 
-    int opCmp(PathVertex other) {
+    int opCmp(PathCosts other) {
         if (this.f == other.f) {
             return 0;
         } else if (this.f > other.f) {
@@ -126,10 +115,10 @@ Vertex[] findPath(Vertex src, Vertex dst) {
     }
 
     h = distanceHeuristic(src, dst);
-    costs[src] = PathCosts(0, h, null);
     auto vertex = src;
-    auto path_vert = PathVertex(h, 0, vertex);
-    auto queue = new RedBlackTree!(PathVertex, "a.f < b.f", true)(path_vert);
+    auto path_vert = PathCosts(0, h, vertex, null);
+    costs[vertex] = path_vert;
+    auto queue = new RedBlackTree!(PathCosts, "a.f < b.f", true)(path_vert);
 
     while (!queue.empty()) {
         path_vert = queue.front();
@@ -156,16 +145,16 @@ Vertex[] findPath(Vertex src, Vertex dst) {
                 auto old_costs = costs[neighbour];
                 if (cost < old_costs.g) {
                     // update cost
-                    costs[neighbour] = PathCosts(
-                            cost, old_costs.h, vertex);
-                    queue.insert(PathVertex(
-                            cost + old_costs.h, cost, neighbour));
+                    old_costs.g = cost;
+                    old_costs.parent = vertex;
+                    queue.insert(old_costs);
                 }
             } else {
                 // add field to opened list
                 h = distanceHeuristic(neighbour, dst);
-                costs[neighbour] = PathCosts(cost, h, vertex);
-                queue.insert(PathVertex(cost + h, cost, neighbour));
+                auto path_neig = PathCosts(cost, h, neighbour, vertex);
+                costs[neighbour] = path_neig;
+                queue.insert(path_neig);
                 opened[neighbour] = true;
             }
         }
